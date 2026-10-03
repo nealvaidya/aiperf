@@ -642,6 +642,12 @@ class Tokenizer:
         cached as ``openai-community/gpt2``). Raises ``OSError`` with a clear
         message if no local snapshot exists.
         """
+        # Mounted checkpoints already contain the tokenizer; their directory
+        # names are not Hub repository identifiers.
+        local_path = Path(name)
+        if local_path.is_dir():
+            return str(local_path.resolve())
+
         from huggingface_hub import snapshot_download
         from huggingface_hub.errors import LocalEntryNotFoundError
 

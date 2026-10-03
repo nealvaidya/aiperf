@@ -250,6 +250,29 @@ class TestTokenizerOnlyRepoCacheLoad:
         assert "local_files_only" not in seen
 
 
+@pytest.mark.parametrize("relative", [False, True])
+def test_offline_local_directory_skips_hub_lookup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, relative: bool
+) -> None:
+    """Parallel decode's offline workers must accept mounted tokenizer paths."""
+    directory = tmp_path / "checkpoint"
+    directory.mkdir()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+    monkeypatch.setenv("TRANSFORMERS_OFFLINE", "1")
+    name = directory.name if relative else str(directory)
+    with (
+        patch("huggingface_hub.snapshot_download") as download,
+        patch(
+            "transformers.AutoTokenizer.from_pretrained",
+            return_value=_FakeHfTokenizer(),
+        ) as load,
+    ):
+        Tokenizer.from_pretrained(name, trust_remote_code=True, resolve_alias=False)
+    download.assert_not_called()
+    load.assert_called_once_with(str(directory), trust_remote_code=True)
+
+
 class _FakeHfTokenizer:
     """Minimal stub that satisfies ``Tokenizer._apply_kwarg_overrides``."""
 
